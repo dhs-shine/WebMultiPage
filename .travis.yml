@@ -1,0 +1,35 @@
+sudo: required
+services: docker
+env:
+  APP_NAME: WebMultiPage
+before_install:
+  - docker run -tdi --name tizenstudio --init -v ${PWD}:/home/developer/workspace dhsshine/tizen-studio:2.1
+script:
+  - docker exec -it tizenstudio package-manager-cli.bin show-pkgs
+  - docker exec -it tizenstudio bash -c 'cd workspace && tizen build-web'
+  - docker exec -it tizenstudio bash -c 'cd workspace && ls -alF'
+  - docker exec -it tizenstudio bash -c 'cd workspace/.buildResult && ls -alF'
+  - docker exec -it tizenstudio bash -c 'cd workspace/.buildResult && tizen package -t wgt'
+after_success:
+  - export ARTIFACT_ID="$APP_NAME-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
+before_deploy:
+  - git config --local user.name "Donghoon Shin"
+  - git config --local user.email "dhs.shine@gmail.com"
+  - git tag -f $ARTIFACT_ID
+deploy:
+  - provider: s3
+    region: ap-northeast-2
+    access_key_id:
+      secure: "fhu38xavOYrrpp7yyaQB/u1eG3xVbt+fT0vzUfYPvCO83soK/2GcxIByG+Bw33rxaTF2IA3wkpi9y4O5aLUfOHwX/74wC7JMsvGLKS3DZTnbdbBpYwvLipM+GnK/XoQyxiDpIAgW3wDajqiKWWriE9vItVJKdFTUhka8RMMsEWsA3tX90KGSw4hwXvBjH/xjKyZf8dhMPauBCF91+2yMsj+dm3SUuBKA1XGze+63+n5KqRfsMABcNIAK0t/J7CS2OhbkE38VW+Q9zQ8gviQ66gznZBRK8C1J9O4QhzNm/NXuhmzoakLKxFreXJziAEm6lPC9KJqAOEHJM+61q+buoCsaZ2gk3v1WaPQPgTHVby0E8ZrltDaACRgN8OTiD9Hqalg4g0LaPnzTRy4iGLh0/tZXaCP+pEI7DvmhZSazomEm3G/DXMvEBJZ3HuxwazKfEZPSp5T6+rXksYZAdFTOFzIjqffz8Yplu2tY1ZzbIwcz7n3HM3qHruie+rvLLWWmD9FPsqLBaKJid3C3M8un1SBvODPmx0t77t1XrbXfiS8KlBCmXeDgAjLkBVCUTvcVqtQCMtqM2juvr5N5TGKN5Y7aHiSN6yXHAUL1CC6De5FxHVfKoLkOSVlCpR6Hv2Mww5MXHFRAAw0lTg00WB3J5hqgzilRN/J/gP0uNUbUyEM="
+    secret_access_key:
+      secure: "u6Jzg1PdkjW9QD9nsfctfwQlS+gCkrpHf9tzoeYJrpYT4tS7L1LWl0acY/A34WwBgpvpKsrPaW3FJpdiW4UCLTW1KKfqIofzv7QxxdTSvgxlWwhbt+bW2cbEo8mIw+JB47JFAOP0QzYgMozZgVy/dmEKvJozdd2ElhWJu44o+cPM9WzDQcfd3qwznH2q0IlWjMYt6/4gtgvJcfdDE117kmXr40gb2OvpFUzFX4t8RHL8NDB2SDs5G3QUgf9ud0kUIVTI53N5ZpYHoImzcB7gGLgd9oDdRh23aQl4cO8+sARBB0FBR+VIQoVwf+pbvYXzY/V71kHBSA6lf9j9b+4re5X+2KNZpizfh609mOSy9o0Q5cpBt1O2v2BlfvBf7LEX1U0GiAfAO6RgMtrLq8nIQY7mMSo+g/3Lnl5tXc73HVTh1PwOfqrY1Vz6zxLPXOEtRdAA0sviMa8y+0cdddwvdrH2GXz8nukZc8PM2QNa1lO2M+c1UDihBbkXNCT9HAmZHcjXWk3WqX0QP1MLkns86mBabyA8uWtJyOZhRYFK2WohaQPwiEmZJ29cqczlB8kkx4YH4lwNzVRB8716+uH5cssa3w5vAFY+8V+hudZHbdqksmve9hOgwA+IY+8xbgqVmXaYKAP8wduBOM5KTw8oRwkHvzlDQmk3T/ENj9Betuo="
+    bucket: mde-update-bucket
+    local_dir: .buildResult
+    skip_cleanup: true
+    upload-dir: $ARTIFACT_ID
+  - provider: releases
+    api_key:
+      secure: "fPWEzBi8ms+UKa7lG6f52T1OOU21Gmu48Us0ofY4yKgz9//vQdEwBqV+HRaVqFpBxnE5svZWth/9lrEm0237CjE84PEU9feWZwOFzsaK2NjBnincAGlf2lHlfatqxeNFJ/b1QbFFY+B+ItwULYnV1W7vsgv4qc14w1DvXN2HyQbXXLXp/Jvsua3ZboVJaWQ19ta0Xj104zI4P4+4ji1DXnSX/HSn6I/h6JX5+CJXu63TNOm5jy26y4IVKVT7APBhG5iLJlO8PkQds+E7dvgJFwJj/Sx/UOeYHdRO8PqeNJbP/wmlii6DQJg1qTCsgVD9nr6DTwo5vGmKJ8/X4p6/9T6hmNKvQNgsOKvIdhRfa1138YeAHxsi2WF9ICyLqREiWL8ZZdIYICnificpEEcP9dYb6Xll+wqK7KUXUhz7qXGxyNpVJ73NlI/dhW+yH9vvC3AP0ARmh421HP+6gEmpefB3gTH93hH8pSr4LsqPGx3h/xh/aE0bFRhpfAglYf9Xn8nWwxnjKAi8MCtaPf0qx70S1EbQZEEEOlLNsmmGuUFes99tsKQgDro1Mt16EWUZ3wnrW0ImJHKzOMMMxikh/g6NiLogX5eNfjr6d4+iaYHu4Hh8kQ+zJUc0Q2CB6ZgEyHt5LZbaG6hOKxBaVmQDKsuFcUTt1dQLV7O8u/R2y/8="
+    skip_cleanup: true
+    file: .buildResult/*.wgt
+    file_glob: true
